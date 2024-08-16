@@ -310,11 +310,32 @@ def custom_cves():  # 增加自定义扫描常见cve
             return xxx['profile_id']
 
 #add by Lee
+# def get_running_task_count():
+#     get_target_url = awvs_url + '/api/v1/me/stats'
+#     stats_result = requests.get(url=get_target_url, headers=headers, verify=False)
+#     scan_num = stats_result.json().get("scans_running_count")
+#     return scan_num
+
+
 def get_running_task_count():
-    get_target_url = awvs_url + '/api/v1/me/stats'
-    stats_result = requests.get(url=get_target_url, headers=headers, verify=False)
-    scan_num = stats_result.json().get("scans_running_count")
-    return scan_num
+    max_retries = 5
+    for attempt in range(max_retries):
+        get_target_url = awvs_url + '/api/v1/me/stats'
+        stats_result = requests.get(url=get_target_url, headers=headers, verify=False)
+
+        try:
+            scan_num = stats_result.json().get("scans_running_count")
+            if isinstance(scan_num, int):
+                return scan_num
+        except Exception as e:
+            print(f"Error while parsing JSON response: {e}")
+
+        # 如果获取的不是int，等待1秒钟后重试
+        time.sleep(1)
+
+    # 如果重试多次后仍然失败，打印错误并返回None
+    print("获取task_count失败")
+    return None
 
 def main():
     global add_count_suss,error_count,target_scan,scan_label,input_urls,scan_speed,custom_headers,profile_id
@@ -417,7 +438,13 @@ def main():
                 while True:
                     # print("int(get_running_task_count()):", int(get_running_task_count()))
                     # print("max_task:", max_task)
-                    running_task_count = int(get_running_task_count())
+                    # running_task_count = int(get_running_task_count())
+                    running_task_count = get_running_task_count()
+                    if running_task_count is not None:
+                        running_task_count = int(running_task_count)
+                    else:
+                        print("无法获取running_task_count，程序将退出")
+                        sys.exit(-1)
                     if running_task_count < max_task:
                         target_state=scan(awvs_url,target,profile_id,is_to_scan)
                         try:
