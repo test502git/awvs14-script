@@ -1,15 +1,11 @@
-# 免责声明
-本项目仅用于安全自查，请勿利用文章内的相关工具与技术从事非法测试，如因此产生的一切不良后果与本项目无关
 
-
-
-本工具来自知识星球-BugBounty漏洞赏金自动化：
-
-![image](https://user-images.githubusercontent.com/50769953/167792916-20a9ee30-6f66-4f83-aa87-2c53e088565a.png)
 
 
 
 ## awvs14-scan
+
+增加最大扫描数限制，while循环监控，扫完再加，避免AWVS资源不足。
+
 支持awvs14,15 修复多个Bug，config增加配置参数
 
 config.ini 请使用编辑器更改，记事本会改会原有格式
@@ -67,9 +63,5 @@ config.ini 请使用编辑器更改，记事本会改会原有格式
 登录： Username:admin@admin.com password:Admin123
 ```
 
-## 赞赏码
-如果对你有帮助的话要不请作者喝杯奶茶?(嘿嘿)👍 (打赏时请留言你的ID
-
-![](https://s3.bmp.ovh/imgs/2022/02/185eb77e0285777a.png)
 
 

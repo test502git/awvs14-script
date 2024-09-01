@@ -31,6 +31,8 @@ try:
     proxy_enabled = cf.get('scan_seting', 'proxy_enabled').replace('\n', '').strip()  # 处理前后空格 与换行
     proxy_server = cf.get('scan_seting', 'proxy_server').replace('\n', '').strip()  # 处理前后空格 与换行
     webhook_url = cf.get('scan_seting', 'webhook_url').replace('\n', '').strip()  # 处理前后空格 与换行
+    # add by Lee
+    max_task = int(cf.get('scan_seting', 'max_task').replace('\n', '').strip())  # 处理前后空格 与换行
 
 except Exception as e:
     print('初始化失败，获取config.ini失败，请检查config.ini文件配置是否正确\n', e)
@@ -307,6 +309,34 @@ def custom_cves():  # 增加自定义扫描常见cve
         if xxx['name']=='cves':
             return xxx['profile_id']
 
+#add by Lee
+# def get_running_task_count():
+#     get_target_url = awvs_url + '/api/v1/me/stats'
+#     stats_result = requests.get(url=get_target_url, headers=headers, verify=False)
+#     scan_num = stats_result.json().get("scans_running_count")
+#     return scan_num
+
+
+def get_running_task_count():
+    max_retries = 5
+    for attempt in range(max_retries):
+        get_target_url = awvs_url + '/api/v1/me/stats'
+        stats_result = requests.get(url=get_target_url, headers=headers, verify=False)
+
+        try:
+            scan_num = stats_result.json().get("scans_running_count")
+            if isinstance(scan_num, int):
+                return scan_num
+        except Exception as e:
+            print(f"Error while parsing JSON response: {e}")
+
+        # 如果获取的不是int，等待1秒钟后重试
+        time.sleep(1)
+
+    # 如果重试多次后仍然失败，打印错误并返回None
+    print("获取task_count失败")
+    return None
+
 def main():
     global add_count_suss,error_count,target_scan,scan_label,input_urls,scan_speed,custom_headers,profile_id
 ########################################################AWVS扫描配置参数#########################################
@@ -324,6 +354,7 @@ def main():
         "10": "custom-Bounty",
         "11": "custom-cve",
         "12": "custom",
+        "13": "11111111-1111-1111-1111-111111111119"
     }
     if target_scan==False:
         print("""选择要扫描的类型：
@@ -339,6 +370,7 @@ def main():
 10 【开始扫描Bug Bounty高频漏洞】
 11 【扫描已知漏洞】（常见CVE，POC等）
 12 【自定义模板】
+13 【开始 扫描高中风险漏洞】
 """)
     else:
         print("""对扫描器中已有目标进行扫描，选择要扫描的类型：
@@ -353,6 +385,7 @@ def main():
 10 【开始扫描Bug Bounty高频漏洞】
 11 【扫描已知漏洞】（常见CVE，POC等）
 12 【自定义模板】
+13 【开始 扫描高中风险漏洞
 """)
 
     scan_type = str(input('请输入数字:'))
@@ -387,20 +420,57 @@ def main():
                 if 'http' not in target[0:7]:
                     target='http://'+target
 
-                target_state=scan(awvs_url,target,profile_id,is_to_scan)
-                try:
-                    if target_state[0]==1:
-                        open('./add_log/success.txt','a',encoding='utf-8').write(target+'\n')
-                        add_count_suss=add_count_suss+1
-                        print("{0} 已加入到扫描队列 ，第:".format(target),str(add_count_suss))
-                    elif target_state[0]==2:
-                        pass
+                # target_state=scan(awvs_url,target,profile_id,is_to_scan)
+                # try:
+                #     if target_state[0]==1:
+                #         open('./add_log/success.txt','a',encoding='utf-8').write(target+'\n')
+                #         add_count_suss=add_count_suss+1
+                #         print("{0} 已加入到扫描队列 ，第:".format(target),str(add_count_suss))
+                #     elif target_state[0]==2:
+                #         pass
+                #     else:
+                #         open('./add_log/error_url.txt', 'a', encoding='utf-8').write(target + '\n')
+                #         error_count=error_count+1
+                #         print("{0} 添加失败".format(target),str(error_count))
+                # except Exception as e:
+                #     print(target,'添加扫描失败', e)
+                print_flag = True  # 定义一个标志变量
+                while True:
+                    # print("int(get_running_task_count()):", int(get_running_task_count()))
+                    # print("max_task:", max_task)
+                    # running_task_count = int(get_running_task_count())
+                    running_task_count = get_running_task_count()
+                    if running_task_count is not None:
+                        running_task_count = int(running_task_count)
                     else:
-                        open('./add_log/error_url.txt', 'a', encoding='utf-8').write(target + '\n')
-                        error_count=error_count+1
-                        print("{0} 添加失败".format(target),str(error_count))
-                except Exception as e:
-                    print(target,'添加扫描失败', e)
+                        print("无法获取running_task_count，程序将退出")
+                        sys.exit(-1)
+                    if running_task_count < max_task:
+                        target_state=scan(awvs_url,target,profile_id,is_to_scan)
+                        try:
+                            if target_state[0]==1:
+                                open('./add_log/success.txt','a',encoding='utf-8').write(target+'\n')
+                                add_count_suss=add_count_suss+1
+                                print("{0} 已加入到扫描队列 ，第:".format(target),str(add_count_suss))
+                                # 适当休眠一段时间再继续检查任务数
+                                time.sleep(5)
+                                break
+                            elif target_state[0]==2:
+                                pass
+                            else:
+                                open('./add_log/error_url.txt', 'a', encoding='utf-8').write(target + '\n')
+                                error_count=error_count+1
+                                print("{0} 添加失败".format(target),str(error_count))
+                                break
+                        except Exception as e:
+                            print(target,'添加扫描失败', e)
+                            break
+                    else:
+                        if print_flag:
+                            print(f"目前已有{running_task_count}个目标正在扫描，等待中..")
+                            print_flag=False
+                    # 适当休眠一段时间再继续检查任务数
+                    time.sleep(2)
 
     elif target_scan==True:#对已有目标扫描
         scanUrl2= ''.join((awvs_url, '/api/v1/scans'))
@@ -419,14 +489,14 @@ def main():
 
 if __name__ == '__main__':
     print(    """
-********************************************************************      
-AWVS14 批量添加，批量扫描，支持awvs14批量联动被动扫描器等功能                                                                                                        
+********************************************************************
+AWVS14 批量添加，批量扫描，支持awvs14批量联动被动扫描器等功能
 作者微信：SRC-ALL
 ********************************************************************
 1 【批量添加url到AWVS扫描器扫描】
 2 【删除扫描器内所有目标与扫描任务】
 3 【删除所有扫描任务(不删除目标)】
-4 【对扫描器中已有目标，进行扫描】 
+4 【对扫描器中已有目标，进行扫描】
 5 【高危漏洞消息推送】 企业微信机器人
 6 【删除已扫描完成的目标】
     """)
